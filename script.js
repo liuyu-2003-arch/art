@@ -1,77 +1,62 @@
-// --- Data ---
-// In a real application, this would come from an API
-const artPieces = [
-    {
-        id: 0,
-        src: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2574&q=80",
-        author: "现代艺术家",
-        title: "《花瓶里的花》的现代演绎",
-    },
-    {
-        id: 1,
-        src: "https://images.unsplash.com/photo-1547891654-e66ed7ebb968?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2940&q=80",
-        author: "街头艺术家",
-        title: "色彩斑斓的抽象画",
-    },
-    {
-        id: 2,
-        src: "https://images.unsplash.com/photo-1506806782131-547c12c68a88?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2940&q=80",
-        author: "未知",
-        title: "沉思的雕塑",
-    },
-    {
-        id: 3,
-        src: "https://images.unsplash.com/photo-1578926375605-eaf75a6b42a6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
-        author: "数字艺术家",
-        title: "霓虹灯下的城市",
-    },
-    {
-        id: 4,
-        src: "https://images.unsplash.com/photo-1536924940846-227afb31e2a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2938&q=80",
-        author: "文森特·梵高 (风格)",
-        title: "旋转的星空",
-    },
-    {
-        id: 5,
-        src: "https://images.unsplash.com/photo-1512413216333-381751a4a81a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
-        author: "古典主义",
-        title: "宁静的肖像",
-    },
-    {
-        id: 6,
-        src: "https://images.unsplash.com/photo-1558865869-c93f6f8482af?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
-        author: "印象派",
-        title: "阳光下的风景",
-    },
-    {
-        id: 7,
-        src: "https://images.unsplash.com/photo-1579965342575-1524a1e3b3af?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
-        author: "超现实主义",
-        title: "梦境的融合",
-    },
-    {
-        id: 8,
-        src: "https://images.unsplash.com/photo-1531816458010-fb7685eec993?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
-        author: "摄影师",
-        title: "黑白光影",
-    },
-    {
-        id: 9,
-        src: "https://images.unsplash.com/photo-1579803815617-1693707d35a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
-        author: "文艺复兴",
-        title: "天使的细节",
-    }
-];
-
 // --- DOM Elements ---
 const artContainer = document.getElementById('art-container');
 const randomBtn = document.getElementById('random-btn');
 
 // --- State ---
+let artworks = []; // This will be populated from the API
 let currentArtIndex = 0;
-const loadedArt = new Set([0]); // Keep track of which art pieces are in the DOM
+const loadedArtIds = new Set(); // Keep track of which art pieces (by ID) are in the DOM
+let isLoading = false;
+
+// --- API Configuration ---
+const API_URL = "https://api.artic.edu/api/v1/artworks?fields=id,title,artist_display,image_id&limit=20";
+const IMAGE_URL_TEMPLATE = "https://www.artic.edu/iiif/2/{imageId}/full/843,/0/default.jpg";
 
 // --- Functions ---
+
+/**
+ * Fetches art pieces from the Art Institute of Chicago API.
+ */
+async function fetchArtPieces() {
+    if (isLoading) return;
+    isLoading = true;
+    showLoadingIndicator();
+
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+            throw new Error(`API request failed with status ${response.status}`);
+        }
+        const data = await response.json();
+        
+        const fetchedArtworks = data.data
+            .filter(item => item.image_id) // Ensure the artwork has an image
+            .map(item => ({
+                id: item.id,
+                src: IMAGE_URL_TEMPLATE.replace('{imageId}', item.image_id),
+                author: item.artist_display ? item.artist_display.split('\n')[0] : "Unknown Artist",
+                title: item.title || "Untitled",
+            }));
+
+        artworks = fetchedArtworks;
+        
+        if (artworks.length > 0) {
+            // Initial load
+            loadArtByIndex(0);
+            loadArtByIndex(1); // Pre-load the next one
+            preloadImages(0);
+        } else {
+            showError("No artworks with images could be loaded.");
+        }
+
+    } catch (error) {
+        console.error("Failed to fetch artworks:", error);
+        showError(error.message);
+    } finally {
+        isLoading = false;
+        hideLoadingIndicator();
+    }
+}
 
 /**
  * Creates and returns a new art slide element.
@@ -86,9 +71,18 @@ function createArtSlide(artPiece) {
     const img = document.createElement('img');
     img.src = artPiece.src;
     img.alt = artPiece.title;
+    // Show info on image load
+    img.onload = () => {
+        slide.querySelector('.art-info').style.opacity = 1;
+    };
+    img.onerror = () => {
+        // Handle cases where the image fails to load
+        slide.querySelector('.art-info p').textContent = "Image not available.";
+    };
 
     const artInfo = document.createElement('div');
     artInfo.className = 'art-info';
+    artInfo.style.opacity = 0; // Initially hidden, revealed on image load
 
     const author = document.createElement('h3');
     author.textContent = artPiece.author;
@@ -105,45 +99,49 @@ function createArtSlide(artPiece) {
 }
 
 /**
- * Loads a specific art piece into the container.
+ * Loads a specific art piece into the container by its index in the artworks array.
  * @param {number} index - The index of the art piece to load.
  */
-function loadArt(index) {
-    if (index < 0 || index >= artPieces.length || loadedArt.has(index)) {
-        return;
-    }
+function loadArtByIndex(index) {
+    if (index < 0 || index >= artworks.length) return;
+    
+    const artPiece = artworks[index];
+    if (!artPiece || loadedArtIds.has(artPiece.id)) return;
 
-    const artPiece = artPieces[index];
     const slide = createArtSlide(artPiece);
+    
+    // Insert the slide in the correct order based on its index
+    const slides = [...artContainer.children];
+    const nextSlideIndex = slides.findIndex(s => {
+        const slideArtIndex = artworks.findIndex(a => a.id === parseInt(s.dataset.id));
+        return slideArtIndex > index;
+    });
 
-    // Insert the slide in the correct order
-    const slides = Array.from(artContainer.children);
-    const nextSlide = slides.find(s => parseInt(s.dataset.id, 10) > index);
-    if (nextSlide) {
-        artContainer.insertBefore(slide, nextSlide);
+    if (nextSlideIndex !== -1) {
+        artContainer.insertBefore(slide, slides[nextSlideIndex]);
     } else {
         artContainer.appendChild(slide);
     }
     
-    loadedArt.add(index);
+    loadedArtIds.add(artPiece.id);
 }
 
 /**
  * Handles the random button click.
  */
 function handleRandomClick() {
+    if (artworks.length === 0) return;
+
     let randomIndex;
     do {
-        randomIndex = Math.floor(Math.random() * artPieces.length);
+        randomIndex = Math.floor(Math.random() * artworks.length);
     } while (randomIndex === currentArtIndex);
 
-    // If the art is not loaded, load it
-    if (!loadedArt.has(randomIndex)) {
-        loadArt(randomIndex);
-    }
+    loadArtByIndex(randomIndex);
 
-    // Scroll to the art piece
-    const targetSlide = artContainer.querySelector(`.art-slide[data-id='${randomIndex}']`);
+    const artPiece = artworks[randomIndex];
+    const targetSlide = artContainer.querySelector(`.art-slide[data-id='${artPiece.id}']`);
+    
     if (targetSlide) {
         targetSlide.scrollIntoView({ behavior: 'smooth' });
         currentArtIndex = randomIndex;
@@ -156,51 +154,52 @@ function handleRandomClick() {
  */
 function preloadImages(index) {
     // Preload next and previous
-    const nextIndex = index + 1;
-    const prevIndex = index - 1;
-
-    if (nextIndex < artPieces.length) {
-        const nextImg = new Image();
-        nextImg.src = artPieces[nextIndex].src;
-    }
-    if (prevIndex >= 0) {
-        const prevImg = new Image();
-        prevImg.src = artPieces[prevIndex].src;
-    }
-    
-    // Preload two random images
-    for (let i = 0; i < 2; i++) {
-        const randomIndex = Math.floor(Math.random() * artPieces.length);
-        if (randomIndex !== index) {
-            const randomImg = new Image();
-            randomImg.src = artPieces[randomIndex].src;
-        }
-    }
+    if (index + 1 < artworks.length) new Image().src = artworks[index + 1].src;
+    if (index - 1 >= 0) new Image().src = artworks[index - 1].src;
 }
 
 /**
  * Updates the current art index based on scroll position.
  */
 function updateCurrentArtOnScroll() {
-    const slides = Array.from(artContainer.children);
-    const scrollTop = artContainer.scrollTop;
-    const scrollCenter = scrollTop + artContainer.clientHeight / 2;
-
-    const currentSlide = slides.find(slide => {
-        return scrollCenter >= slide.offsetTop && scrollCenter <= slide.offsetTop + slide.offsetHeight;
-    });
+    const scrollCenter = artContainer.scrollTop + artContainer.clientHeight / 2;
+    
+    const currentSlide = [...artContainer.children].find(slide => 
+        scrollCenter >= slide.offsetTop && scrollCenter < slide.offsetTop + slide.offsetHeight
+    );
 
     if (currentSlide) {
-        const newIndex = parseInt(currentSlide.dataset.id, 10);
-        if (newIndex !== currentArtIndex) {
+        const newArtId = parseInt(currentSlide.dataset.id, 10);
+        const newIndex = artworks.findIndex(a => a.id === newArtId);
+
+        if (newIndex !== -1 && newIndex !== currentArtIndex) {
             currentArtIndex = newIndex;
-            // Load adjacent art pieces
-            loadArt(currentArtIndex - 1);
-            loadArt(currentArtIndex + 1);
-            // Preload images for even smoother scrolling
+            // Load adjacent art pieces for seamless scrolling
+            loadArtByIndex(currentArtIndex - 1);
+            loadArtByIndex(currentArtIndex + 1);
             preloadImages(currentArtIndex);
         }
     }
+}
+
+// --- UI Indicators ---
+
+function showLoadingIndicator() {
+    const indicator = document.createElement('div');
+    indicator.id = 'loading-indicator';
+    indicator.textContent = 'Loading Art...';
+    artContainer.appendChild(indicator);
+}
+
+function hideLoadingIndicator() {
+    const indicator = document.getElementById('loading-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+function showError(message) {
+    artContainer.innerHTML = `<div class="art-slide" style="color: #ff6b6b;">Error: ${message}</div>`;
 }
 
 
@@ -208,23 +207,5 @@ function updateCurrentArtOnScroll() {
 randomBtn.addEventListener('click', handleRandomClick);
 artContainer.addEventListener('scroll', updateCurrentArtOnScroll, { passive: true });
 
-
 // --- Initial Load ---
-function init() {
-    const firstArt = artPieces.find(p => p.id === 0);
-    if (!firstArt) {
-        console.error("Art piece with ID 0 not found!");
-        return;
-    }
-
-    artContainer.innerHTML = ''; // Clear container
-    const firstSlide = createArtSlide(firstArt);
-    artContainer.appendChild(firstSlide);
-    loadedArt.add(0);
-
-    // Load initial set of art
-    loadArt(1); // Load the next one
-    preloadImages(0); // Preload for the first slide
-}
-
-init();
+fetchArtPieces();
