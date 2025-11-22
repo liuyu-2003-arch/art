@@ -1,0 +1,123 @@
+/* General Body Styles */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #000;
+    color: #fff;
+    overflow: hidden; /* Hide scrollbars */
+}
+
+/* Art Container - Fullscreen holder for slides */
+#art-container {
+    height: 100vh;
+    width: 100vw;
+    overflow-y: scroll;
+    /* "抖音" like scroll effect */
+    scroll-snap-type: y mandatory;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Art Slide - A single piece of art */
+.art-slide {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    scroll-snap-align: start;
+    position: relative;
+    box-sizing: border-box;
+    padding: 20px;
+}
+
+/* Image Styling */
+.art-slide img {
+    max-width: 100%;
+    max-height: 75vh; /* Limit image height to leave space for info */
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Art Info Box */
+.art-info {
+    position: absolute;
+    bottom: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px 25px;
+    border-radius: 10px;
+    text-align: center;
+    width: 80%;
+    max-width: 500px;
+    backdrop-filter: blur(10px); /* Frosted glass effect */
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.art-info h3 {
+    margin: 0 0 5px 0;
+    font-size: 1.5rem;
+}
+
+.art-info p {
+    margin: 0;
+    font-size: 1rem;
+    color: #ccc;
+}
+
+/* Random Button */
+#random-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+#random-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+#random-btn:active {
+    transform: scale(0.9);
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+#random-btn svg {
+    stroke: #fff;
+}
+
+/* Responsive Design for smaller screens */
+@media (max-width: 600px) {
+    .art-info {
+        width: 90%;
+        bottom: 3%;
+        padding: 10px 15px;
+    }
+
+    .art-info h3 {
+        font-size: 1.2rem;
+    }
+
+    .art-info p {
+        font-size: 0.9rem;
+    }
+
+    #random-btn {
+        width: 45px;
+        height: 45px;
+    }
+}

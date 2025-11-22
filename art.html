@@ -1,1 +1,32 @@
-sa
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日艺术</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="art-container">
+        <!-- Art pieces will be dynamically loaded here, but we can have one for structure -->
+        <div class="art-slide" data-id="0">
+            <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2574&q=80" alt="艺术品图片">
+            <div class="art-info">
+                <h3>文森特·梵高</h3>
+                <p>《星夜》的现代演绎版。</p>
+            </div>
+        </div>
+    </div>
+
+    <button id="random-btn" aria-label="随机切换">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 3.549L19 2l-2 3.451"/>
+            <path d="m4 20.5 3-2.951"/>
+            <path d="M20 4.5v7.5c0 4.418-3.582 8-8 8s-8-3.582-8-8V4.5"/>
+            <path d="M16 19.5v-7.5c0-4.418-3.582-8-8-8s-8 3.582-8 8v7.5"/>
+        </svg>
+    </button>
+
+    <script src="script.js"></script>
+</body>
+</html>
