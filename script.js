@@ -225,7 +225,6 @@ function updateCurrentArtOnScroll() {
 function showLoadingIndicator() {
     const indicator = document.createElement('div');
     indicator.id = 'loading-indicator';
-    indicator.textContent = '加载艺术品中...';
     artContainer.appendChild(indicator);
 }
 
