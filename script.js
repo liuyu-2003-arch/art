@@ -30,6 +30,36 @@ const artPieces = [
         src: "https://images.unsplash.com/photo-1536924940846-227afb31e2a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2938&q=80",
         author: "文森特·梵高 (风格)",
         title: "旋转的星空",
+    },
+    {
+        id: 5,
+        src: "https://images.unsplash.com/photo-1512413216333-381751a4a81a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
+        author: "古典主义",
+        title: "宁静的肖像",
+    },
+    {
+        id: 6,
+        src: "https://images.unsplash.com/photo-1558865869-c93f6f8482af?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
+        author: "印象派",
+        title: "阳光下的风景",
+    },
+    {
+        id: 7,
+        src: "https://images.unsplash.com/photo-1579965342575-1524a1e3b3af?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
+        author: "超现实主义",
+        title: "梦境的融合",
+    },
+    {
+        id: 8,
+        src: "https://images.unsplash.com/photo-1531816458010-fb7685eec993?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
+        author: "摄影师",
+        title: "黑白光影",
+    },
+    {
+        id: 9,
+        src: "https://images.unsplash.com/photo-1579803815617-1693707d35a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2835&q=80",
+        author: "文艺复兴",
+        title: "天使的细节",
     }
 ];
 
@@ -85,7 +115,16 @@ function loadArt(index) {
 
     const artPiece = artPieces[index];
     const slide = createArtSlide(artPiece);
-    artContainer.appendChild(slide);
+
+    // Insert the slide in the correct order
+    const slides = Array.from(artContainer.children);
+    const nextSlide = slides.find(s => parseInt(s.dataset.id, 10) > index);
+    if (nextSlide) {
+        artContainer.insertBefore(slide, nextSlide);
+    } else {
+        artContainer.appendChild(slide);
+    }
+    
     loadedArt.add(index);
 }
 
@@ -128,6 +167,15 @@ function preloadImages(index) {
         const prevImg = new Image();
         prevImg.src = artPieces[prevIndex].src;
     }
+    
+    // Preload two random images
+    for (let i = 0; i < 2; i++) {
+        const randomIndex = Math.floor(Math.random() * artPieces.length);
+        if (randomIndex !== index) {
+            const randomImg = new Image();
+            randomImg.src = artPieces[randomIndex].src;
+        }
+    }
 }
 
 /**
@@ -163,10 +211,16 @@ artContainer.addEventListener('scroll', updateCurrentArtOnScroll, { passive: tru
 
 // --- Initial Load ---
 function init() {
-    // Clear the container except for the first slide
-    const firstSlide = artContainer.querySelector('.art-slide');
-    artContainer.innerHTML = '';
+    const firstArt = artPieces.find(p => p.id === 0);
+    if (!firstArt) {
+        console.error("Art piece with ID 0 not found!");
+        return;
+    }
+
+    artContainer.innerHTML = ''; // Clear container
+    const firstSlide = createArtSlide(firstArt);
     artContainer.appendChild(firstSlide);
+    loadedArt.add(0);
 
     // Load initial set of art
     loadArt(1); // Load the next one
