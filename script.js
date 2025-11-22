@@ -11,8 +11,34 @@ let isLoading = false;
 // --- API Configuration ---
 const API_BASE_URL = "https://api.artic.edu/api/v1/artworks";
 const IMAGE_URL_TEMPLATE = "https://www.artic.edu/iiif/2/{imageId}/full/843,/0/default.jpg";
+const TRANSLATION_API_URL = "https://api.mymemory.translated.net/get";
 
 // --- Functions ---
+
+/**
+ * Translates text from English to Chinese using the MyMemory API.
+ * @param {string} text The text to translate.
+ * @returns {Promise<string>} The translated text, or the original text if translation fails.
+ */
+async function translateText(text) {
+    if (!text || !text.trim()) {
+        return text;
+    }
+    try {
+        const response = await fetch(`${TRANSLATION_API_URL}?q=${encodeURIComponent(text)}&langpair=en|zh-CN`);
+        if (!response.ok) {
+            return text; // Return original text on API error
+        }
+        const data = await response.json();
+        if (data.responseStatus === 200 && data.responseData.translatedText) {
+            return data.responseData.translatedText;
+        }
+        return text; // Return original if translation not found
+    } catch (error) {
+        console.error("Translation API failed:", error);
+        return text; // Return original on network failure
+    }
+}
 
 /**
  * Fetches art pieces from the Art Institute of Chicago API.
@@ -23,40 +49,34 @@ async function fetchArtPieces() {
     showLoadingIndicator();
 
     try {
-        // To get more variety, we'll pick a random page from the first 100 pages of results.
         const randomPage = Math.floor(Math.random() * 100) + 1;
         const url = `${API_BASE_URL}?fields=id,title,artist_display,image_id,short_description&limit=100&page=${randomPage}`;
 
         const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
+            throw new Error(`API 请求失败，状态码： ${response.status}`);
         }
         const data = await response.json();
         
-        const fetchedArtworks = data.data
-            .filter(item => item.image_id) // Ensure the artwork has an image
+        artworks = data.data
+            .filter(item => item.image_id)
             .map(item => ({
                 id: item.id,
                 src: IMAGE_URL_TEMPLATE.replace('{imageId}', item.image_id),
-                author: item.artist_display ? item.artist_display.split('\n')[0] : "Unknown Artist",
-                title: item.title || "Untitled",
+                author: item.artist_display ? item.artist_display.split('\n')[0] : "未知艺术家",
+                title: item.title || "无题",
                 description: item.short_description || null
             }));
 
-        artworks = fetchedArtworks;
-        
         if (artworks.length > 0) {
-            // Initial load
             loadArtByIndex(0);
-            loadArtByIndex(1); // Pre-load the next one
+            loadArtByIndex(1);
             preloadImages(0);
         } else {
-            // If a random page has no images, try fetching again.
             fetchArtPieces();
         }
-
     } catch (error) {
-        console.error("Failed to fetch artworks:", error);
+        console.error("获取艺术品失败:", error);
         showError(error.message);
     } finally {
         isLoading = false;
@@ -65,7 +85,7 @@ async function fetchArtPieces() {
 }
 
 /**
- * Creates and returns a new art slide element.
+ * Creates and returns a new art slide element with original text.
  * @param {object} artPiece - The art piece data.
  * @returns {HTMLElement} - The created art slide element.
  */
@@ -77,31 +97,27 @@ function createArtSlide(artPiece) {
     const img = document.createElement('img');
     img.src = artPiece.src;
     img.alt = artPiece.title;
-    // Show info on image load
-    img.onload = () => {
-        slide.querySelector('.art-info').style.opacity = 1;
-    };
-    img.onerror = () => {
-        // Handle cases where the image fails to load
-        slide.querySelector('.art-info p').textContent = "Image not available.";
-    };
+    img.onload = () => slide.querySelector('.art-info').style.opacity = 1;
+    img.onerror = () => slide.querySelector('.art-description').textContent = "图片无法加载";
 
     const artInfo = document.createElement('div');
     artInfo.className = 'art-info';
-    artInfo.style.opacity = 0; // Initially hidden, revealed on image load
+    artInfo.style.opacity = 0;
 
-    const author = document.createElement('h3');
-    author.textContent = artPiece.author;
-
-    const title = document.createElement('p');
+    const title = document.createElement('h3');
+    title.className = 'art-title';
     title.textContent = artPiece.title;
+
+    const author = document.createElement('p');
+    author.className = 'art-author';
+    author.textContent = artPiece.author;
     
     const description = document.createElement('p');
     description.className = 'art-description';
     description.textContent = artPiece.description || '';
 
-    artInfo.appendChild(author);
     artInfo.appendChild(title);
+    artInfo.appendChild(author);
     if (artPiece.description) {
         artInfo.appendChild(description);
     }
@@ -113,7 +129,7 @@ function createArtSlide(artPiece) {
 }
 
 /**
- * Loads a specific art piece into the container by its index in the artworks array.
+ * Loads an art piece, inserts it into the DOM, and then translates its content.
  * @param {number} index - The index of the art piece to load.
  */
 function loadArtByIndex(index) {
@@ -124,20 +140,31 @@ function loadArtByIndex(index) {
 
     const slide = createArtSlide(artPiece);
     
-    // Insert the slide in the correct order based on its index
     const slides = [...artContainer.children];
-    const nextSlideIndex = slides.findIndex(s => {
-        const slideArtIndex = artworks.findIndex(a => a.id === parseInt(s.dataset.id));
-        return slideArtIndex > index;
-    });
-
-    if (nextSlideIndex !== -1) {
-        artContainer.insertBefore(slide, slides[nextSlideIndex]);
+    const nextSlide = slides.find(s => artworks.findIndex(a => a.id === parseInt(s.dataset.id)) > index);
+    
+    if (nextSlide) {
+        artContainer.insertBefore(slide, nextSlide);
     } else {
         artContainer.appendChild(slide);
     }
     
     loadedArtIds.add(artPiece.id);
+
+    // --- Translate content after inserting into DOM ---
+    const titleElement = slide.querySelector('.art-title');
+    if (titleElement && artPiece.title) {
+        translateText(artPiece.title).then(translated => {
+            titleElement.textContent = translated;
+        });
+    }
+
+    const descriptionElement = slide.querySelector('.art-description');
+    if (descriptionElement && artPiece.description) {
+        translateText(artPiece.description).then(translated => {
+            descriptionElement.textContent = translated;
+        });
+    }
 }
 
 /**
@@ -158,7 +185,6 @@ function handleRandomClick() {
     
     if (targetSlide) {
         targetSlide.scrollIntoView({ behavior: 'smooth' });
-        currentArtIndex = randomIndex;
     }
 }
 
@@ -167,7 +193,6 @@ function handleRandomClick() {
  * @param {number} index - The current art index.
  */
 function preloadImages(index) {
-    // Preload next and previous
     if (index + 1 < artworks.length) new Image().src = artworks[index + 1].src;
     if (index - 1 >= 0) new Image().src = artworks[index - 1].src;
 }
@@ -188,7 +213,6 @@ function updateCurrentArtOnScroll() {
 
         if (newIndex !== -1 && newIndex !== currentArtIndex) {
             currentArtIndex = newIndex;
-            // Load adjacent art pieces for seamless scrolling
             loadArtByIndex(currentArtIndex - 1);
             loadArtByIndex(currentArtIndex + 1);
             preloadImages(currentArtIndex);
@@ -201,21 +225,18 @@ function updateCurrentArtOnScroll() {
 function showLoadingIndicator() {
     const indicator = document.createElement('div');
     indicator.id = 'loading-indicator';
-    indicator.textContent = 'Loading Art...';
+    indicator.textContent = '加载艺术品中...';
     artContainer.appendChild(indicator);
 }
 
 function hideLoadingIndicator() {
     const indicator = document.getElementById('loading-indicator');
-    if (indicator) {
-        indicator.remove();
-    }
+    if (indicator) indicator.remove();
 }
 
 function showError(message) {
-    artContainer.innerHTML = `<div class="art-slide" style="color: #ff6b6b;">Error: ${message}</div>`;
+    artContainer.innerHTML = `<div class="art-slide" style="color: #ff6b6b;">错误： ${message}</div>`;
 }
-
 
 // --- Event Listeners ---
 randomBtn.addEventListener('click', handleRandomClick);

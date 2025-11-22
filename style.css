@@ -1,18 +1,10 @@
+/* --- Font Imports --- */
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital@0;1&family=Playfair+Display:wght@700&display=swap');
+
 /* --- Keyframe Animations --- */
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translate(-50%, 10px);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, 0);
-    }
 }
 
 @keyframes scaleIn {
@@ -29,7 +21,7 @@
 /* --- General Body Styles --- */
 body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: 'Lora', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: #000;
     color: #fff;
     overflow: hidden; /* Hide all body scrollbars */
@@ -67,7 +59,7 @@ body {
 /* --- Image Styling --- */
 .art-slide img {
     max-width: 100%;
-    max-height: 75vh;
+    max-height: 70vh; /* Slightly smaller to give more space for text */
     object-fit: contain;
     border-radius: 10px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -77,40 +69,42 @@ body {
 /* --- Art Info Box --- */
 .art-info {
     position: absolute;
-    bottom: 5%;
+    bottom: 4%;
     left: 50%;
     transform: translateX(-50%);
     background-color: rgba(0, 0, 0, 0.75);
-    padding: 15px 25px;
+    padding: 20px 30px;
     border-radius: 12px;
     text-align: center;
     width: 80%;
-    max-width: 600px;
+    max-width: 650px;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     
-    /* Animation */
     opacity: 0; /* Initially hidden, controlled by JS */
-    transition: opacity 0.8s ease-out 0.3s; /* Fade in after image loads */
+    transition: opacity 0.8s ease-out 0.3s;
 }
 
-.art-info h3 {
-    margin: 0 0 8px 0;
-    font-size: 1.6rem;
-    font-weight: 600;
+.art-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin: 0 0 12px 0;
+    color: #fff;
 }
 
-.art-info p {
-    margin: 0;
+.art-author {
     font-size: 1rem;
-    color: #ddd;
+    color: #ccc;
+    margin: 0 0 15px 0;
+    font-style: italic;
 }
 
 .art-description {
-    font-size: 0.9rem;
-    color: #aaa;
-    margin-top: 12px;
-    line-height: 1.5;
+    font-size: 0.95rem;
+    color: #bbb;
+    line-height: 1.6;
+    margin: 0;
 }
 
 /* --- Random Button --- */
@@ -152,22 +146,26 @@ body {
 
 /* --- Responsive Design --- */
 @media (max-width: 600px) {
+    .art-slide img {
+        max-height: 65vh;
+    }
+
     .art-info {
         width: 90%;
-        bottom: 4%;
-        padding: 12px 18px;
+        bottom: 3%;
+        padding: 15px 20px;
     }
 
-    .art-info h3 {
-        font-size: 1.3rem;
+    .art-title {
+        font-size: 1.8rem;
     }
 
-    .art-info p {
-        font-size: 0.95rem;
+    .art-author {
+        font-size: 0.9rem;
     }
     
     .art-description {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
     }
 
     #random-btn {
