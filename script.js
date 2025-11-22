@@ -9,7 +9,7 @@ const loadedArtIds = new Set(); // Keep track of which art pieces (by ID) are in
 let isLoading = false;
 
 // --- API Configuration ---
-const API_URL = "https://api.artic.edu/api/v1/artworks?fields=id,title,artist_display,image_id&limit=20";
+const API_BASE_URL = "https://api.artic.edu/api/v1/artworks";
 const IMAGE_URL_TEMPLATE = "https://www.artic.edu/iiif/2/{imageId}/full/843,/0/default.jpg";
 
 // --- Functions ---
@@ -23,7 +23,11 @@ async function fetchArtPieces() {
     showLoadingIndicator();
 
     try {
-        const response = await fetch(API_URL);
+        // To get more variety, we'll pick a random page from the first 100 pages of results.
+        const randomPage = Math.floor(Math.random() * 100) + 1;
+        const url = `${API_BASE_URL}?fields=id,title,artist_display,image_id,short_description&limit=100&page=${randomPage}`;
+
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);
         }
@@ -36,6 +40,7 @@ async function fetchArtPieces() {
                 src: IMAGE_URL_TEMPLATE.replace('{imageId}', item.image_id),
                 author: item.artist_display ? item.artist_display.split('\n')[0] : "Unknown Artist",
                 title: item.title || "Untitled",
+                description: item.short_description || null
             }));
 
         artworks = fetchedArtworks;
@@ -46,7 +51,8 @@ async function fetchArtPieces() {
             loadArtByIndex(1); // Pre-load the next one
             preloadImages(0);
         } else {
-            showError("No artworks with images could be loaded.");
+            // If a random page has no images, try fetching again.
+            fetchArtPieces();
         }
 
     } catch (error) {
@@ -89,9 +95,17 @@ function createArtSlide(artPiece) {
 
     const title = document.createElement('p');
     title.textContent = artPiece.title;
+    
+    const description = document.createElement('p');
+    description.className = 'art-description';
+    description.textContent = artPiece.description || '';
 
     artInfo.appendChild(author);
     artInfo.appendChild(title);
+    if (artPiece.description) {
+        artInfo.appendChild(description);
+    }
+    
     slide.appendChild(img);
     slide.appendChild(artInfo);
 
@@ -165,7 +179,7 @@ function updateCurrentArtOnScroll() {
     const scrollCenter = artContainer.scrollTop + artContainer.clientHeight / 2;
     
     const currentSlide = [...artContainer.children].find(slide => 
-        scrollCenter >= slide.offsetTop && scrollCenter < slide.offsetTop + slide.offsetHeight
+        scrollCenter >= slide.offsetTop && scrollCenter < slide.offsetHeight + slide.offsetTop
     );
 
     if (currentSlide) {
