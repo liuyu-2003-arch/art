@@ -1,4 +1,32 @@
-/* General Body Styles */
+/* --- Keyframe Animations --- */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 10px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* --- General Body Styles --- */
 body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -7,24 +35,21 @@ body {
     overflow: hidden; /* Hide all body scrollbars */
 }
 
-/* Art Container - Fullscreen holder for slides */
+/* --- Art Container --- */
 #art-container {
     height: 100vh;
     width: 100vw;
     overflow-y: scroll;
     scroll-snap-type: y mandatory;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    
-    /* Hide scrollbar for Firefox */
-    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* For Firefox */
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
 #art-container::-webkit-scrollbar {
-    display: none;
+    display: none; /* For Chrome, Safari, Opera */
 }
 
-/* Art Slide - A single piece of art */
+/* --- Art Slide --- */
 .art-slide {
     height: 100vh;
     width: 100vw;
@@ -36,52 +61,66 @@ body {
     position: relative;
     box-sizing: border-box;
     padding: 20px;
+    animation: fadeIn 0.8s ease-in-out;
 }
 
-/* Image Styling */
+/* --- Image Styling --- */
 .art-slide img {
     max-width: 100%;
-    max-height: 75vh; /* Limit image height to leave space for info */
+    max-height: 75vh;
     object-fit: contain;
     border-radius: 10px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Art Info Box */
+/* --- Art Info Box --- */
 .art-info {
     position: absolute;
     bottom: 5%;
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.75);
     padding: 15px 25px;
-    border-radius: 10px;
+    border-radius: 12px;
     text-align: center;
     width: 80%;
-    max-width: 500px;
-    backdrop-filter: blur(10px); /* Frosted glass effect */
-    -webkit-backdrop-filter: blur(10px);
+    max-width: 600px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    
+    /* Animation */
+    opacity: 0; /* Initially hidden, controlled by JS */
+    transition: opacity 0.8s ease-out 0.3s; /* Fade in after image loads */
 }
 
 .art-info h3 {
-    margin: 0 0 5px 0;
-    font-size: 1.5rem;
+    margin: 0 0 8px 0;
+    font-size: 1.6rem;
+    font-weight: 600;
 }
 
 .art-info p {
     margin: 0;
     font-size: 1rem;
-    color: #ccc;
+    color: #ddd;
 }
 
-/* Random Button */
+.art-description {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-top: 12px;
+    line-height: 1.5;
+}
+
+/* --- Random Button --- */
 #random-btn {
     position: fixed;
     top: 20px;
     right: 20px;
     z-index: 100;
-    background-color: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(25, 25, 25, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 50%;
     width: 50px;
     height: 50px;
@@ -89,38 +128,46 @@ body {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    transition: background-color 0.3s, transform 0.3s;
+    transition: background-color 0.3s, transform 0.3s ease;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
 }
 
 #random-btn:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
 #random-btn:active {
-    transform: scale(0.9);
-    background-color: rgba(255, 255, 255, 0.3);
+    transform: scale(0.9) rotate(90deg);
 }
 
 #random-btn svg {
     stroke: #fff;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Responsive Design for smaller screens */
+#random-btn:active svg {
+    transform: rotate(180deg);
+}
+
+/* --- Responsive Design --- */
 @media (max-width: 600px) {
     .art-info {
         width: 90%;
-        bottom: 3%;
-        padding: 10px 15px;
+        bottom: 4%;
+        padding: 12px 18px;
     }
 
     .art-info h3 {
-        font-size: 1.2rem;
+        font-size: 1.3rem;
     }
 
     .art-info p {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+    }
+    
+    .art-description {
+        font-size: 0.85rem;
     }
 
     #random-btn {
