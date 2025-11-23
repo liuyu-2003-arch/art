@@ -1,6 +1,6 @@
 // --- DOM Elements ---
 const artContainer = document.getElementById('art-container');
-const randomBtn = document.getElementById('random-btn');
+const similarBtn = document.getElementById('similar-btn');
 
 // --- State ---
 let artworks = []; // This will be populated from the API
@@ -10,55 +10,72 @@ let isLoading = false;
 
 // --- API Configuration ---
 const API_BASE_URL = "https://api.artic.edu/api/v1/artworks";
+const API_SEARCH_URL = "https://api.artic.edu/api/v1/artworks/search";
 const IMAGE_URL_TEMPLATE = "https://www.artic.edu/iiif/2/{imageId}/full/843,/0/default.jpg";
 const TRANSLATION_API_URL = "https://api.mymemory.translated.net/get";
 
-// --- Functions ---
+// --- Utility Functions ---
 
 /**
- * Translates text from English to Chinese using the MyMemory API.
- * @param {string} text The text to translate.
- * @returns {Promise<string>} The translated text, or the original text if translation fails.
+ * Shuffles an array in place.
+ * @param {Array} array The array to shuffle.
  */
-async function translateText(text) {
-    if (!text || !text.trim()) {
-        return text;
-    }
-    try {
-        const response = await fetch(`${TRANSLATION_API_URL}?q=${encodeURIComponent(text)}&langpair=en|zh-CN`);
-        if (!response.ok) {
-            return text; // Return original text on API error
-        }
-        const data = await response.json();
-        if (data.responseStatus === 200 && data.responseData.translatedText) {
-            return data.responseData.translatedText;
-        }
-        return text; // Return original if translation not found
-    } catch (error) {
-        console.error("Translation API failed:", error);
-        return text; // Return original on network failure
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
 }
 
 /**
- * Fetches art pieces from the Art Institute of Chicago API.
+ * Translates text from English to Chinese.
+ * @param {string} text The text to translate.
+ * @returns {Promise<string>} The translated text.
  */
-async function fetchArtPieces() {
+async function translateText(text) {
+    if (!text || !text.trim()) return text;
+    try {
+        const response = await fetch(`${TRANSLATION_API_URL}?q=${encodeURIComponent(text)}&langpair=en|zh-CN`);
+        if (!response.ok) return text;
+        const data = await response.json();
+        return data.responseData?.translatedText || text;
+    } catch (error) {
+        console.error("Translation API failed:", error);
+        return text;
+    }
+}
+
+// --- Core Functions ---
+
+/**
+ * Fetches art pieces from the API, optionally based on a query.
+ * @param {string|null} query An optional search query (e.g., artist's name).
+ */
+async function fetchArtPieces(query = null) {
     if (isLoading) return;
     isLoading = true;
     showLoadingIndicator();
+    artContainer.innerHTML = ''; // Clear previous content
+    loadedArtIds.clear();
+    currentArtIndex = 0;
 
     try {
-        const randomPage = Math.floor(Math.random() * 100) + 1;
-        const url = `${API_BASE_URL}?fields=id,title,artist_display,image_id,short_description&limit=100&page=${randomPage}`;
+        let url;
+        if (query) {
+            // Search for artworks by a specific query (artist)
+            url = `${API_SEARCH_URL}?q=${encodeURIComponent(query)}&fields=id,title,artist_display,image_id,short_description&limit=100`;
+        } else {
+            // Fetch a random page of artworks
+            const randomPage = Math.floor(Math.random() * 100) + 1;
+            url = `${API_BASE_URL}?fields=id,title,artist_display,image_id,short_description&limit=100&page=${randomPage}`;
+        }
 
         const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`API 请求失败，状态码： ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`API 请求失败，状态码： ${response.status}`);
+        
         const data = await response.json();
         
-        artworks = data.data
+        let fetchedArtworks = data.data
             .filter(item => item.image_id)
             .map(item => ({
                 id: item.id,
@@ -68,12 +85,16 @@ async function fetchArtPieces() {
                 description: item.short_description || null
             }));
 
-        if (artworks.length > 0) {
+        if (fetchedArtworks.length > 0) {
+            shuffleArray(fetchedArtworks); // Shuffle the artworks for random order
+            artworks = fetchedArtworks;
             loadArtByIndex(0);
             loadArtByIndex(1);
             preloadImages(0);
         } else {
-            fetchArtPieces();
+            // If no results, fetch random ones instead
+            if (query) fetchArtPieces(); 
+            else showError("未能加载艺术品，请稍后再试。");
         }
     } catch (error) {
         console.error("获取艺术品失败:", error);
@@ -85,9 +106,7 @@ async function fetchArtPieces() {
 }
 
 /**
- * Creates and returns a new art slide element with original text.
- * @param {object} artPiece - The art piece data.
- * @returns {HTMLElement} - The created art slide element.
+ * Creates and returns a new art slide element.
  */
 function createArtSlide(artPiece) {
     const slide = document.createElement('div');
@@ -100,7 +119,7 @@ function createArtSlide(artPiece) {
     img.onload = () => slide.querySelector('.art-info').style.opacity = 1;
     img.onerror = () => {
         console.warn(`Image failed to load, removing slide: ${artPiece.src}`);
-        slide.remove(); // Remove the slide if the image fails to load
+        slide.remove();
     };
 
     const artInfo = document.createElement('div');
@@ -121,19 +140,21 @@ function createArtSlide(artPiece) {
 
     artInfo.appendChild(title);
     artInfo.appendChild(author);
-    if (artPiece.description) {
-        artInfo.appendChild(description);
-    }
+    if (artPiece.description) artInfo.appendChild(description);
     
     slide.appendChild(img);
     slide.appendChild(artInfo);
+
+    // --- Translate content after creating the slide ---
+    if (artPiece.title) translateText(artPiece.title).then(t => title.textContent = t);
+    if (artPiece.description) translateText(artPiece.description).then(t => description.textContent = t);
 
     return slide;
 }
 
 /**
- * Loads an art piece, inserts it into the DOM, and then translates its content.
- * @param {number} index - The index of the art piece to load.
+ * Loads an art piece into the DOM.
+ * @param {number} index The index of the art piece to load.
  */
 function loadArtByIndex(index) {
     if (index < 0 || index >= artworks.length) return;
@@ -144,7 +165,8 @@ function loadArtByIndex(index) {
     const slide = createArtSlide(artPiece);
     
     const slides = [...artContainer.children];
-    const nextSlide = slides.find(s => artworks.findIndex(a => a.id === parseInt(s.dataset.id)) > index);
+    const targetIndex = artworks.findIndex(a => a.id === artPiece.id);
+    const nextSlide = slides.find(s => artworks.findIndex(a => a.id === parseInt(s.dataset.id)) > targetIndex);
     
     if (nextSlide) {
         artContainer.insertBefore(slide, nextSlide);
@@ -153,47 +175,26 @@ function loadArtByIndex(index) {
     }
     
     loadedArtIds.add(artPiece.id);
-
-    // --- Translate content after inserting into DOM ---
-    const titleElement = slide.querySelector('.art-title');
-    if (titleElement && artPiece.title) {
-        translateText(artPiece.title).then(translated => {
-            titleElement.textContent = translated;
-        });
-    }
-
-    const descriptionElement = slide.querySelector('.art-description');
-    if (descriptionElement && artPiece.description) {
-        translateText(artPiece.description).then(translated => {
-            descriptionElement.textContent = translated;
-        });
-    }
 }
 
 /**
- * Handles the random button click.
+ * Handles the "Similar" button click.
  */
-function handleRandomClick() {
-    if (artworks.length === 0) return;
+function handleSimilarClick() {
+    if (artworks.length === 0 || isLoading) return;
 
-    let randomIndex;
-    do {
-        randomIndex = Math.floor(Math.random() * artworks.length);
-    } while (randomIndex === currentArtIndex);
-
-    loadArtByIndex(randomIndex);
-
-    const artPiece = artworks[randomIndex];
-    const targetSlide = artContainer.querySelector(`.art-slide[data-id='${artPiece.id}']`);
-    
-    if (targetSlide) {
-        targetSlide.scrollIntoView({ behavior: 'smooth' });
+    const currentArt = artworks[currentArtIndex];
+    if (currentArt && currentArt.author !== "未知艺术家") {
+        // Fetch a new list of artworks by the same author
+        fetchArtPieces(currentArt.author);
+    } else {
+        // If author is unknown, just fetch a new random batch
+        fetchArtPieces();
     }
 }
 
 /**
- * Preloads images for a smoother experience.
- * @param {number} index - The current art index.
+ * Preloads adjacent images.
  */
 function preloadImages(index) {
     if (index + 1 < artworks.length) new Image().src = artworks[index + 1].src;
@@ -205,10 +206,7 @@ function preloadImages(index) {
  */
 function updateCurrentArtOnScroll() {
     const scrollCenter = artContainer.scrollTop + artContainer.clientHeight / 2;
-    
-    const currentSlide = [...artContainer.children].find(slide => 
-        scrollCenter >= slide.offsetTop && scrollCenter < slide.offsetHeight + slide.offsetTop
-    );
+    const currentSlide = [...artContainer.children].find(s => scrollCenter >= s.offsetTop && scrollCenter < s.offsetTop + s.offsetHeight);
 
     if (currentSlide) {
         const newArtId = parseInt(currentSlide.dataset.id, 10);
@@ -224,7 +222,6 @@ function updateCurrentArtOnScroll() {
 }
 
 // --- UI Indicators ---
-
 function showLoadingIndicator() {
     const indicator = document.createElement('div');
     indicator.id = 'loading-indicator';
@@ -241,8 +238,8 @@ function showError(message) {
 }
 
 // --- Event Listeners ---
-randomBtn.addEventListener('click', handleRandomClick);
+similarBtn.addEventListener('click', handleSimilarClick);
 artContainer.addEventListener('scroll', updateCurrentArtOnScroll, { passive: true });
 
 // --- Initial Load ---
-fetchArtPieces();
+fetchArtPieces(); // Initial random load
