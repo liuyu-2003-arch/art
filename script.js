@@ -98,7 +98,10 @@ function createArtSlide(artPiece) {
     img.src = artPiece.src;
     img.alt = artPiece.title;
     img.onload = () => slide.querySelector('.art-info').style.opacity = 1;
-    img.onerror = () => slide.querySelector('.art-description').textContent = "图片无法加载";
+    img.onerror = () => {
+        console.warn(`Image failed to load, removing slide: ${artPiece.src}`);
+        slide.remove(); // Remove the slide if the image fails to load
+    };
 
     const artInfo = document.createElement('div');
     artInfo.className = 'art-info';
