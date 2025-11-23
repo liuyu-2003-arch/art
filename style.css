@@ -26,9 +26,9 @@
 body {
     margin: 0;
     font-family: 'Lora', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #000;
-    color: #fff;
-    overflow: hidden; /* Hide all body scrollbars */
+    background-color: #f4f4f4; /* Light background */
+    color: #333; /* Dark text */
+    overflow: hidden;
 }
 
 /* --- Art Container --- */
@@ -38,11 +38,11 @@ body {
     overflow-y: scroll;
     scroll-snap-type: y mandatory;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* For Firefox */
+    scrollbar-width: none;
 }
 
 #art-container::-webkit-scrollbar {
-    display: none; /* For Chrome, Safari, Opera */
+    display: none;
 }
 
 /* --- Loading Indicator --- */
@@ -54,8 +54,8 @@ body {
     margin-top: -25px;
     width: 50px;
     height: 50px;
-    border: 4px solid transparent; /* Changed from semi-transparent white */
-    border-top-color: #fff;
+    border: 4px solid transparent;
+    border-top-color: #333; /* Dark spinner */
     border-radius: 50%;
     animation: spin 1s linear infinite;
     z-index: 200;
@@ -79,62 +79,61 @@ body {
 /* --- Image Styling --- */
 .art-slide img {
     max-width: 100%;
-    max-height: 70vh; /* Slightly smaller to give more space for text */
+    max-height: 68vh;
     object-fit: contain;
     border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* --- Art Info Box --- */
 .art-info {
     position: absolute;
-    bottom: 4%;
+    bottom: 6%;
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.75);
-    padding: 20px 30px;
-    border-radius: 12px;
+    background-color: transparent; /* No background */
     text-align: center;
     width: 80%;
-    max-width: 650px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    max-width: 600px;
     
-    opacity: 0; /* Initially hidden, controlled by JS */
+    opacity: 0;
     transition: opacity 0.8s ease-out 0.3s;
 }
 
 .art-title {
     font-family: 'Playfair Display', serif;
-    font-size: 1.9rem; /* Adjusted from 2.2rem */
+    font-size: 1.2rem;
     font-weight: 700;
-    margin: 0 0 12px 0;
-    color: #fff;
+    margin: 0 0 8px 0;
+    color: #111;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Corrected shadow for light theme */
 }
 
 .art-author {
     font-size: 1rem;
-    color: #ccc;
-    margin: 0 0 15px 0;
+    color: #555;
+    margin: 0 0 12px 0;
     font-style: italic;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .art-description {
-    font-size: 0.95rem;
-    color: #bbb;
+    font-size: 0.9rem;
+    color: #666;
     line-height: 1.6;
     margin: 0;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
-/* --- Random Button --- */
-#random-btn {
+/* --- Similar Button --- */
+#similar-btn {
     position: fixed;
     top: 20px;
     right: 20px;
     z-index: 100;
-    background-color: rgba(25, 25, 25, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 50%;
     width: 50px;
     height: 50px;
@@ -147,21 +146,17 @@ body {
     -webkit-backdrop-filter: blur(10px);
 }
 
-#random-btn:hover {
-    background-color: rgba(255, 255, 255, 0.15);
+#similar-btn:hover {
+    background-color: rgba(255, 255, 255, 0.8);
 }
 
-#random-btn:active {
-    transform: scale(0.9) rotate(90deg);
+#similar-btn:active {
+    transform: scale(0.9);
 }
 
-#random-btn svg {
-    stroke: #fff;
+#similar-btn svg {
+    stroke: #333;
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-#random-btn:active svg {
-    transform: rotate(180deg);
 }
 
 /* --- Responsive Design --- */
@@ -172,12 +167,11 @@ body {
 
     .art-info {
         width: 90%;
-        bottom: 3%;
-        padding: 15px 20px;
+        bottom: 4%;
     }
 
     .art-title {
-        font-size: 1.6rem; /* Adjusted from 1.8rem */
+        font-size: 1.1rem;
     }
 
     .art-author {
@@ -185,10 +179,10 @@ body {
     }
     
     .art-description {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
 
-    #random-btn {
+    #similar-btn {
         width: 45px;
         height: 45px;
     }
