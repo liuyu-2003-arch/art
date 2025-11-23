@@ -62,10 +62,8 @@ async function fetchArtPieces(query = null) {
     try {
         let url;
         if (query) {
-            // Search for artworks by a specific query (artist)
             url = `${API_SEARCH_URL}?q=${encodeURIComponent(query)}&fields=id,title,artist_display,image_id,short_description&limit=100`;
         } else {
-            // Fetch a random page of artworks
             const randomPage = Math.floor(Math.random() * 100) + 1;
             url = `${API_BASE_URL}?fields=id,title,artist_display,image_id,short_description&limit=100&page=${randomPage}`;
         }
@@ -86,13 +84,12 @@ async function fetchArtPieces(query = null) {
             }));
 
         if (fetchedArtworks.length > 0) {
-            shuffleArray(fetchedArtworks); // Shuffle the artworks for random order
+            shuffleArray(fetchedArtworks);
             artworks = fetchedArtworks;
             loadArtByIndex(0);
             loadArtByIndex(1);
             preloadImages(0);
         } else {
-            // If no results, fetch random ones instead
             if (query) fetchArtPieces(); 
             else showError("未能加载艺术品，请稍后再试。");
         }
@@ -113,10 +110,13 @@ function createArtSlide(artPiece) {
     slide.className = 'art-slide';
     slide.dataset.id = artPiece.id;
 
+    const wrapper = document.createElement('div');
+    wrapper.className = 'art-content-wrapper';
+
     const img = document.createElement('img');
     img.src = artPiece.src;
     img.alt = artPiece.title;
-    img.onload = () => slide.querySelector('.art-info').style.opacity = 1;
+    img.onload = () => wrapper.style.opacity = 1; // Fade in the whole wrapper
     img.onerror = () => {
         console.warn(`Image failed to load, removing slide: ${artPiece.src}`);
         slide.remove();
@@ -124,7 +124,6 @@ function createArtSlide(artPiece) {
 
     const artInfo = document.createElement('div');
     artInfo.className = 'art-info';
-    artInfo.style.opacity = 0;
 
     const title = document.createElement('h3');
     title.className = 'art-title';
@@ -142,8 +141,11 @@ function createArtSlide(artPiece) {
     artInfo.appendChild(author);
     if (artPiece.description) artInfo.appendChild(description);
     
-    slide.appendChild(img);
-    slide.appendChild(artInfo);
+    wrapper.appendChild(img);
+    wrapper.appendChild(artInfo);
+    wrapper.style.opacity = 0; // Initially hide for fade-in
+
+    slide.appendChild(wrapper);
 
     // --- Translate content after creating the slide ---
     if (artPiece.title) translateText(artPiece.title).then(t => title.textContent = t);
@@ -154,7 +156,6 @@ function createArtSlide(artPiece) {
 
 /**
  * Loads an art piece into the DOM.
- * @param {number} index The index of the art piece to load.
  */
 function loadArtByIndex(index) {
     if (index < 0 || index >= artworks.length) return;
@@ -185,10 +186,8 @@ function handleSimilarClick() {
 
     const currentArt = artworks[currentArtIndex];
     if (currentArt && currentArt.author !== "未知艺术家") {
-        // Fetch a new list of artworks by the same author
         fetchArtPieces(currentArt.author);
     } else {
-        // If author is unknown, just fetch a new random batch
         fetchArtPieces();
     }
 }
@@ -242,4 +241,4 @@ similarBtn.addEventListener('click', handleSimilarClick);
 artContainer.addEventListener('scroll', updateCurrentArtOnScroll, { passive: true });
 
 // --- Initial Load ---
-fetchArtPieces(); // Initial random load
+fetchArtPieces();
