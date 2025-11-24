@@ -182,6 +182,10 @@ function loadArtByIndex(index) {
  * Handles the "Similar" button click.
  */
 function handleSimilarClick() {
+    // 添加一个视觉反馈动画
+    similarBtn.style.transform = 'scale(0.9)';
+    setTimeout(() => similarBtn.style.transform = '', 150);
+
     if (artworks.length === 0 || isLoading) return;
 
     const currentArt = artworks[currentArtIndex];
@@ -236,9 +240,37 @@ function showError(message) {
     artContainer.innerHTML = `<div class="art-slide" style="color: #ff6b6b;">错误： ${message}</div>`;
 }
 
+// --- NEW: Keyboard Navigation Logic ---
+function handleKeyboardInput(e) {
+    // 忽略在输入框内的按键（如果有的话）
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    switch (e.key) {
+        case 'ArrowDown':
+            e.preventDefault(); // 防止默认的页面滚动
+            // 向下滚动一个视口高度
+            artContainer.scrollBy({ top: artContainer.clientHeight, behavior: 'smooth' });
+            break;
+
+        case 'ArrowUp':
+            e.preventDefault();
+            // 向上滚动一个视口高度
+            artContainer.scrollBy({ top: -artContainer.clientHeight, behavior: 'smooth' });
+            break;
+
+        case 'ArrowLeft':
+        case 'ArrowRight':
+            e.preventDefault();
+            // 左右键都触发"查找相似"功能
+            handleSimilarClick();
+            break;
+    }
+}
+
 // --- Event Listeners ---
 similarBtn.addEventListener('click', handleSimilarClick);
 artContainer.addEventListener('scroll', updateCurrentArtOnScroll, { passive: true });
+document.addEventListener('keydown', handleKeyboardInput); // 添加全局键盘监听
 
 // --- Initial Load ---
 fetchArtPieces();
