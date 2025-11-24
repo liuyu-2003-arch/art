@@ -3,10 +3,11 @@ const artContainer = document.getElementById('art-container');
 const similarBtn = document.getElementById('similar-btn');
 
 // --- State ---
-let artworks = []; // This will be populated from the API
+let artworks = []; // 存储所有已加载的艺术品数据
 let currentArtIndex = 0;
-const loadedArtIds = new Set(); // Keep track of which art pieces (by ID) are in the DOM
+const loadedArtIds = new Set(); // 避免重复渲染
 let isLoading = false;
+let currentQuery = null; // 记录当前是在"随机模式"还是"搜索模式"
 
 // --- API Configuration ---
 const API_BASE_URL = "https://api.artic.edu/api/v1/artworks";
@@ -16,10 +17,6 @@ const TRANSLATION_API_URL = "https://api.mymemory.translated.net/get";
 
 // --- Utility Functions ---
 
-/**
- * Shuffles an array in place.
- * @param {Array} array The array to shuffle.
- */
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -27,11 +24,6 @@ function shuffleArray(array) {
     }
 }
 
-/**
- * Translates text from English to Chinese.
- * @param {string} text The text to translate.
- * @returns {Promise<string>} The translated text.
- */
 async function translateText(text) {
     if (!text || !text.trim()) return text;
     try {
@@ -48,31 +40,44 @@ async function translateText(text) {
 // --- Core Functions ---
 
 /**
- * Fetches art pieces from the API, optionally based on a query.
- * @param {string|null} query An optional search query (e.g., artist's name).
+ * 获取艺术品数据
+ * @param {string|null} query - 搜索关键词（如艺术家名字），传 null 则为随机模式
+ * @param {boolean} isAppend - 是否是追加模式（下滑加载更多时为 true）
  */
-async function fetchArtPieces(query = null) {
+async function fetchArtPieces(query = null, isAppend = false) {
     if (isLoading) return;
     isLoading = true;
-    showLoadingIndicator();
-    artContainer.innerHTML = ''; // Clear previous content
-    loadedArtIds.clear();
-    currentArtIndex = 0;
+
+    // 如果不是追加模式（即完全重新刷新），则清空当前内容
+    if (!isAppend) {
+        showLoadingIndicator(); // 只有全屏加载时才显示中间的大loading
+        artContainer.innerHTML = '';
+        loadedArtIds.clear();
+        artworks = [];
+        currentArtIndex = 0;
+        currentQuery = query; // 更新当前模式
+    }
 
     try {
         let url;
+        // 策略调整：随机模式下，每次只取 15 张 (limit=15)，但来自完全随机的页码
+        // 这样当你滑完 15 张，下次加载会自动去另一个随机页码，风格就会大变
+        const limit = query ? 50 : 15;
+
         if (query) {
-            url = `${API_SEARCH_URL}?q=${encodeURIComponent(query)}&fields=id,title,artist_display,image_id,short_description&limit=100`;
+            // 搜索模式 (查找相似)
+            url = `${API_SEARCH_URL}?q=${encodeURIComponent(query)}&fields=id,title,artist_display,image_id,short_description&limit=${limit}`;
         } else {
-            const randomPage = Math.floor(Math.random() * 100) + 1;
-            url = `${API_BASE_URL}?fields=id,title,artist_display,image_id,short_description&limit=100&page=${randomPage}`;
+            // 随机模式：随机页码 (1-1000页)
+            const randomPage = Math.floor(Math.random() * 1000) + 1;
+            url = `${API_BASE_URL}?fields=id,title,artist_display,image_id,short_description&limit=${limit}&page=${randomPage}`;
         }
 
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`API 请求失败，状态码： ${response.status}`);
-        
+        if (!response.ok) throw new Error(`API 请求失败`);
+
         const data = await response.json();
-        
+
         let fetchedArtworks = data.data
             .filter(item => item.image_id)
             .map(item => ({
@@ -84,27 +89,34 @@ async function fetchArtPieces(query = null) {
             }));
 
         if (fetchedArtworks.length > 0) {
-            shuffleArray(fetchedArtworks);
-            artworks = fetchedArtworks;
-            loadArtByIndex(0);
-            loadArtByIndex(1);
-            preloadImages(0);
+            shuffleArray(fetchedArtworks); // 再次打乱当前批次
+
+            // 将新数据追加到主数组
+            const startIndex = artworks.length;
+            artworks = artworks.concat(fetchedArtworks);
+
+            // 如果是初始加载，立即渲染前两张
+            if (!isAppend) {
+                loadArtByIndex(0);
+                loadArtByIndex(1);
+                preloadImages(0);
+                hideLoadingIndicator();
+            } else {
+                // 如果是追加加载，尝试预加载接下来的图片
+                preloadImages(currentArtIndex);
+            }
         } else {
-            if (query) fetchArtPieces(); 
-            else showError("未能加载艺术品，请稍后再试。");
+            if (!isAppend && query) fetchArtPieces(null); // 搜不到就回退到随机
+            else if (!isAppend) showError("未能加载艺术品");
         }
     } catch (error) {
-        console.error("获取艺术品失败:", error);
-        showError(error.message);
+        console.error("Fetch failed:", error);
+        if (!isAppend) showError(error.message);
     } finally {
         isLoading = false;
-        hideLoadingIndicator();
     }
 }
 
-/**
- * Creates and returns a new art slide element.
- */
 function createArtSlide(artPiece) {
     const slide = document.createElement('div');
     slide.className = 'art-slide';
@@ -116,10 +128,9 @@ function createArtSlide(artPiece) {
     const img = document.createElement('img');
     img.src = artPiece.src;
     img.alt = artPiece.title;
-    img.onload = () => wrapper.style.opacity = 1; // Fade in the whole wrapper
+    img.onload = () => wrapper.style.opacity = 1;
     img.onerror = () => {
-        console.warn(`Image failed to load, removing slide: ${artPiece.src}`);
-        slide.remove();
+        slide.remove(); // 图片挂了就移除dom
     };
 
     const artInfo = document.createElement('div');
@@ -132,7 +143,7 @@ function createArtSlide(artPiece) {
     const author = document.createElement('p');
     author.className = 'art-author';
     author.textContent = artPiece.author;
-    
+
     const description = document.createElement('p');
     description.className = 'art-description';
     description.textContent = artPiece.description || '';
@@ -140,49 +151,37 @@ function createArtSlide(artPiece) {
     artInfo.appendChild(title);
     artInfo.appendChild(author);
     if (artPiece.description) artInfo.appendChild(description);
-    
+
     wrapper.appendChild(img);
     wrapper.appendChild(artInfo);
-    wrapper.style.opacity = 0; // Initially hide for fade-in
+    wrapper.style.opacity = 0;
 
     slide.appendChild(wrapper);
 
-    // --- Translate content after creating the slide ---
+    // 异步翻译
     if (artPiece.title) translateText(artPiece.title).then(t => title.textContent = t);
     if (artPiece.description) translateText(artPiece.description).then(t => description.textContent = t);
 
     return slide;
 }
 
-/**
- * Loads an art piece into the DOM.
- */
 function loadArtByIndex(index) {
     if (index < 0 || index >= artworks.length) return;
-    
+
     const artPiece = artworks[index];
+    // 检查是否已经存在于DOM中，避免重复添加
     if (!artPiece || loadedArtIds.has(artPiece.id)) return;
 
     const slide = createArtSlide(artPiece);
-    
-    const slides = [...artContainer.children];
-    const targetIndex = artworks.findIndex(a => a.id === artPiece.id);
-    const nextSlide = slides.find(s => artworks.findIndex(a => a.id === parseInt(s.dataset.id)) > targetIndex);
-    
-    if (nextSlide) {
-        artContainer.insertBefore(slide, nextSlide);
-    } else {
-        artContainer.appendChild(slide);
-    }
-    
+
+    // 简单的插入逻辑：直接追加到最后
+    // 因为 infinite scroll 主要是向下追加，复杂的插入排序在动态追加场景下容易出错
+    artContainer.appendChild(slide);
+
     loadedArtIds.add(artPiece.id);
 }
 
-/**
- * Handles the "Similar" button click.
- */
 function handleSimilarClick() {
-    // 添加一个视觉反馈动画
     similarBtn.style.transform = 'scale(0.9)';
     setTimeout(() => similarBtn.style.transform = '', 150);
 
@@ -190,26 +189,23 @@ function handleSimilarClick() {
 
     const currentArt = artworks[currentArtIndex];
     if (currentArt && currentArt.author !== "未知艺术家") {
-        fetchArtPieces(currentArt.author);
+        fetchArtPieces(currentArt.author, false); // false 表示重置列表，开始搜索
     } else {
-        fetchArtPieces();
+        fetchArtPieces(null, false);
     }
 }
 
-/**
- * Preloads adjacent images.
- */
 function preloadImages(index) {
+    // 预加载下两张
     if (index + 1 < artworks.length) new Image().src = artworks[index + 1].src;
-    if (index - 1 >= 0) new Image().src = artworks[index - 1].src;
+    if (index + 2 < artworks.length) new Image().src = artworks[index + 2].src;
 }
 
-/**
- * Updates the current art index based on scroll position.
- */
 function updateCurrentArtOnScroll() {
     const scrollCenter = artContainer.scrollTop + artContainer.clientHeight / 2;
-    const currentSlide = [...artContainer.children].find(s => scrollCenter >= s.offsetTop && scrollCenter < s.offsetTop + s.offsetHeight);
+    const slides = [...artContainer.children].filter(c => c.classList.contains('art-slide'));
+
+    const currentSlide = slides.find(s => scrollCenter >= s.offsetTop && scrollCenter < s.offsetTop + s.offsetHeight);
 
     if (currentSlide) {
         const newArtId = parseInt(currentSlide.dataset.id, 10);
@@ -217,9 +213,17 @@ function updateCurrentArtOnScroll() {
 
         if (newIndex !== -1 && newIndex !== currentArtIndex) {
             currentArtIndex = newIndex;
-            loadArtByIndex(currentArtIndex - 1);
+
+            // 动态加载下一张（如果还没渲染）
             loadArtByIndex(currentArtIndex + 1);
             preloadImages(currentArtIndex);
+
+            // --- 核心修改：无限滚动逻辑 ---
+            // 如果处于随机模式 (!currentQuery)，且快滑到底部了（倒数第3张），加载新的一批
+            if (!currentQuery && currentArtIndex >= artworks.length - 3) {
+                console.log("接近底部，加载新的一批随机艺术品...");
+                fetchArtPieces(null, true); // true 表示追加模式
+            }
         }
     }
 }
@@ -240,28 +244,24 @@ function showError(message) {
     artContainer.innerHTML = `<div class="art-slide" style="color: #ff6b6b;">错误： ${message}</div>`;
 }
 
-// --- NEW: Keyboard Navigation Logic ---
+// --- Keyboard Logic ---
 function handleKeyboardInput(e) {
-    // 忽略在输入框内的按键（如果有的话）
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
     switch (e.key) {
         case 'ArrowDown':
-            e.preventDefault(); // 防止默认的页面滚动
-            // 向下滚动一个视口高度
+            e.preventDefault();
             artContainer.scrollBy({ top: artContainer.clientHeight, behavior: 'smooth' });
             break;
 
         case 'ArrowUp':
             e.preventDefault();
-            // 向上滚动一个视口高度
             artContainer.scrollBy({ top: -artContainer.clientHeight, behavior: 'smooth' });
             break;
 
         case 'ArrowLeft':
         case 'ArrowRight':
             e.preventDefault();
-            // 左右键都触发"查找相似"功能
             handleSimilarClick();
             break;
     }
@@ -270,7 +270,7 @@ function handleKeyboardInput(e) {
 // --- Event Listeners ---
 similarBtn.addEventListener('click', handleSimilarClick);
 artContainer.addEventListener('scroll', updateCurrentArtOnScroll, { passive: true });
-document.addEventListener('keydown', handleKeyboardInput); // 添加全局键盘监听
+document.addEventListener('keydown', handleKeyboardInput);
 
 // --- Initial Load ---
 fetchArtPieces();
